@@ -9,7 +9,7 @@ except ImportError:
     from tag import Action, Player, TagState
 
 
-GROUP_NAME = "replace-with-your-group-name"
+GROUP_NAME = "CAChE"
 
 
 class Agent(BaseAgent):
@@ -17,6 +17,9 @@ class Agent(BaseAgent):
         super().__init__(seed)
         # Initialize your model and hyperparameters here. Use self.rng for
         # reproducible randomness. The supplied framework runs training.
+        self.q_table: dict[tuple[int, Action], float] = {}
+        self.alpha = 0.1
+        self.gamma = 0.95
 
     def init_episode(self) -> EpisodeConfig:
         """Return EpisodeConfig(side_length=..., n_opponents=..., max_steps=...).
@@ -181,4 +184,11 @@ class Agent(BaseAgent):
         next_actions contains this player's next legal choices. When terminal
         is True, it is empty and the transition has zero future action value.
         """
-        raise NotImplementedError
+        current_q = self.q_table.get((state, action), 0.0)
+        if terminal or not next_actions:
+            target = reward
+        else:
+            max_next_q = max(self.q_table.get((next_state, next_action), 0.0) for next_action in next_actions)
+            target = reward + self.gamma * max_next_q
+
+        self.q_table[(state, action)] = (current_q + self.alpha * (target - current_q))
