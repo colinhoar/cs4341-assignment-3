@@ -71,9 +71,38 @@ class Agent(BaseAgent):
         if is_it and not was_it:
             reward -= 1.0
         
-        # Could add distance considerations to reward or penalize actions based on proximity to other players
+        
+        # Function to calculate distance between player and nearest opponent
+            
+        
+        
+        
+        
+        
+        # Distance considerations
+        if was_it == is_it:
+            reward += 0.3 * (self.dist(next_state, player) - self.dist(state, player))
+            
+        
         
         return reward
+    
+    
+    def consider_distance(self, state, player):
+        # Find current position of player
+        me = state.position_of(player)
+        scale = max(1, state.n_rows + state.n_cols - 2)
+        
+        # Function for calcuating distance between the current player and another player
+        def dist(other):
+            p = state.position_of(other)
+            return abs(me[0] - p[0]) + abs(me[1] - p[1])
+        
+        if state.tagged_player == player:
+            nearest_opponent = min(dist(other) for other in state.players if other != player)
+            return -nearest_opponent / scale
+        
+        return dist(state.tagged_player)
         
 
     def select_action(
