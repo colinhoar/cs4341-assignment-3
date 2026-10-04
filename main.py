@@ -19,13 +19,15 @@ class Agent(BaseAgent):
         # reproducible randomness. The supplied framework runs training.
 
     def init_episode(self) -> EpisodeConfig:
-        """Return EpisodeConfig(side_length=..., n_opponents=..., max_steps=...).
-
-        All three fields are positive integers. n_opponents + 1 must fit in
-        side_length ** 2 cells. max_steps counts total player turns.
-        Reset episode history here and preserve your learned model.
-        """
-        raise NotImplementedError
+        # Increase episode index
+        self.episode_index += 1
+        
+        side = self.rng.choice([4, 5, 6, 7])
+        n_players = self.rng.randint(3, max(3, min(10, side * side // 3)))
+        max_steps = 30 * n_players
+        
+        
+        return EpisodeConfig(side_length=side, n_opponents=n_players - 1, max_steps=max_steps)
 
     def encode_state(self, state: TagState, player: Player) -> int:
         """Convert the board from player's perspective to a stable Python int.
