@@ -81,9 +81,7 @@ class Agent(BaseAgent):
         
         # Distance considerations
         if was_it == is_it:
-            reward += 0.3 * (self.dist(next_state, player) - self.dist(state, player))
-            
-        
+            reward += 0.3 * (self.consider_distance(next_state, player) - self.consider_distance(state, player))
         
         return reward
     
