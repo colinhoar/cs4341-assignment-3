@@ -51,7 +51,111 @@ class Agent(BaseAgent):
         Include the features your policy and model need. Keep this conversion
         free of side effects and retain encoded integers in your model and history.
         """
-        raise NotImplementedError
+        # Get player's position and role
+        player_row, player_col = state.position_of(player)
+        is_it = state.tagged_player == player
+        just_tagged = is_it and state.just_tagged # Affects current tagger's ability to tag
+
+        # When It...
+        if is_it:
+
+            target_player = None
+            nearest_distance = None
+
+            for other in state.players:
+
+                if other == player:
+                    continue
+
+                other_row, other_col = state.position_of(other)
+
+                distance = (abs(other_row - player_row) + abs(other_col - player_col))
+
+                # Focus on tagging nearest non-tagger
+                if nearest_distance is None or distance < nearest_distance:
+
+                    nearest_distance = distance
+                    target_player = other
+
+        # When not It...
+        else:
+
+            # Focus on avoiding tagger
+            target_player = state.tagged_player
+
+        # Calculate relative position of target player
+        target_row, target_col = state.position_of(target_player)
+        row_difference = target_row - player_row
+        col_difference = target_col - player_col
+        distance = abs(row_difference) + abs(col_difference)
+
+        # Encode overall distance
+        if distance <= 1:
+            distance_bucket = 0 # next to
+        elif distance == 2:
+            distance_bucket = 1 # very close
+        elif distance <= 4:
+            distance_bucket = 2 # somewhat close
+        else: 
+            distance_bucket = 3 # far
+
+        # Encode row direction
+        if row_difference < 0:
+            row_relation = 0 # north
+        elif row_difference > 0:
+            row_relation = 1 # south
+        else:
+            row_relation = 2 # same row
+
+        # Encode column direction
+        if col_difference < 0:
+            col_relation = 0 # west
+        elif col_difference > 0:
+            col_relation = 1 # east
+        else:
+            col_relation = 2 # same column
+
+        # Encode unavailable cells
+        occupied_positions = set(state.positions)
+
+        # Bit positions:
+        #   bit 0 = north
+        #   bit 1 = south
+        #   bit 2 = west
+        #   bit 3 = east
+
+        neighbors = (
+            (player_row - 1, player_col), # north
+            (player_row + 1, player_col), # south
+            (player_row, player_col - 1), # west
+            (player_row, player_col + 1), # east
+        )
+
+        blocked_mask = 0
+
+        for direction, (row, col) in enumerate(neighbors):
+
+            outside_board = (
+                row < 0
+                or row >= state.n_rows
+                or col < 0
+                or col >= state.n_cols
+            )
+
+            occupied = (row, col) in occupied_positions
+
+            if outside_board or occupied:
+                blocked_mask |= (1 << direction)
+
+        # Return data as one integer
+        encoded = int(is_it)
+        encoded = encoded * 2 + int(just_tagged)
+        encoded = encoded * 4 + distance_bucket
+        encoded = encoded * 3 + row_relation
+        encoded = encoded * 3 + col_relation
+        encoded = encoded * 16 + blocked_mask
+
+        return int(encoded)
 
     def calculate_reward(
         self,
