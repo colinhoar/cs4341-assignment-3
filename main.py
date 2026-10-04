@@ -22,12 +22,20 @@ class Agent(BaseAgent):
         # Increase episode index
         self.episode_index += 1
         
+        # Choose a random side length for the board that isn't too large
         side = self.rng.choice([4, 5, 6, 7])
+        
+        # Decide number of players based on the board size
         n_players = self.rng.randint(3, max(3, min(10, side * side // 3)))
+        
+        # Calculate max steps based on the number of players
         max_steps = 30 * n_players
         
-        
+        # Return resulting EpisodeConfig
         return EpisodeConfig(side_length=side, n_opponents=n_players - 1, max_steps=max_steps)
+
+
+
 
     def encode_state(self, state: TagState, player: Player) -> int:
         """Convert the board from player's perspective to a stable Python int.
@@ -37,6 +45,9 @@ class Agent(BaseAgent):
         """
         raise NotImplementedError
 
+
+
+
     def calculate_reward(
         self,
         state: TagState,
@@ -45,13 +56,25 @@ class Agent(BaseAgent):
         player: Player,
         terminal: bool,
     ) -> float:
-        """Return a finite float using the actual before-and-after TagState objects.
-
-        The interval spans player's action through its next turn or game end,
-        including other players' moves. terminal says whether next_state ends
-        the episode. Keep state objects local to this reward calculation.
-        """
-        raise NotImplementedError
+        # Determine if player was it before and after action
+        was_it = state.tagged_player == player
+        is_it = next_state.tagged_player == player
+        
+        # Determine changes in the player's status (how much they were it and how many tags they have)
+        d_it = next_state.score_of(player).it_turns - state.score_of(player).it_turns
+        d_tags = next_state.score_of(player).tags - state.score_of(player).tags
+        
+        # Reward tags, and penalize being tagged
+        reward = 0.0
+        reward -= d_it * 1.0
+        reward += d_tags * 2.0
+        if is_it and not was_it:
+            reward -= 1.0
+        
+        # Could add distance considerations to reward or penalize actions based on proximity to other players
+        
+        return reward
+        
 
     def select_action(
         self, state: int, legal_actions: tuple[Action, ...], training: bool,
