@@ -22,13 +22,20 @@ class Agent(BaseAgent):
         self.gamma = 0.95
 
     def init_episode(self) -> EpisodeConfig:
-        """Return EpisodeConfig(side_length=..., n_opponents=..., max_steps=...).
-
-        All three fields are positive integers. n_opponents + 1 must fit in
-        side_length ** 2 cells. max_steps counts total player turns.
-        Reset episode history here and preserve your learned model.
-        """
-        raise NotImplementedError
+        # Increase episode index
+        # self.episode_index += 1
+        
+        # Choose a random side length for the board that isn't too large
+        side = self.rng.choice([4, 5, 6, 7])
+        
+        # Decide number of players based on the board size
+        n_players = self.rng.randint(3, max(3, min(10, side * side // 3)))
+        
+        # Calculate max steps based on the number of players
+        max_steps = 30 * n_players
+        
+        # Return resulting EpisodeConfig
+        return EpisodeConfig(side_length=side, n_opponents=n_players - 1, max_steps=max_steps)
 
     def encode_state(self, state: TagState, player: Player) -> int:
         """Convert the board from player's perspective to a stable Python int.
@@ -151,13 +158,43 @@ class Agent(BaseAgent):
         player: Player,
         terminal: bool,
     ) -> float:
-        """Return a finite float using the actual before-and-after TagState objects.
+        # Determine if player was it before and after action
+        was_it = state.tagged_player == player
+        is_it = next_state.tagged_player == player
+        
+        # Determine changes in the player's status (how much they were it and how many tags they have)
+        d_it = next_state.score_of(player).it_turns - state.score_of(player).it_turns
+        d_tags = next_state.score_of(player).tags - state.score_of(player).tags
+        
+        # Reward tags, and penalize being tagged
+        reward = 0.0
+        reward -= d_it * 1.0
+        reward += d_tags * 2.0
+        if is_it and not was_it:
+            reward -= 1.0
+            
+        # Distance considerations
+        if was_it == is_it:
+            reward += 0.3 * (self.consider_distance(next_state, player) - self.consider_distance(state, player))
 
-        The interval spans player's action through its next turn or game end,
-        including other players' moves. terminal says whether next_state ends
-        the episode. Keep state objects local to this reward calculation.
-        """
-        raise NotImplementedError
+        return reward
+    
+    
+    def consider_distance(self, state, player):
+        # Find current position of player
+        me = state.position_of(player)
+        scale = max(1, state.n_rows + state.n_cols - 2)
+        
+        # Function for calcuating distance between the current player and another player
+        def dist(other):
+            p = state.position_of(other)
+            return abs(me[0] - p[0]) + abs(me[1] - p[1])
+        
+        if state.tagged_player == player:
+            nearest_opponent = min(dist(other) for other in state.players if other != player)
+            return -nearest_opponent / scale
+        
+        return dist(state.tagged_player)
 
     def select_action(
         self, state: int, legal_actions: tuple[Action, ...], training: bool,
