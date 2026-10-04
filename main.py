@@ -10,7 +10,7 @@ except ImportError:
     from tag import Action, Player, TagState
 
 
-GROUP_NAME = "replace-with-your-group-name"
+GROUP_NAME = "CAChE"
 
 class Agent(BaseAgent):
     def __init__(self, seed: int) -> None:
@@ -247,4 +247,4 @@ class Agent(BaseAgent):
             max_next_q = max(self.q_table.get((next_state, next_action), 0.0) for next_action in next_actions)
             target = reward + self.gamma * max_next_q
 
-        self.q_table[(state, action)] = (current_q + self.alpha * (target - current_q))
+        self.q_table[(state, action)] = (current_q + self.lr * (target - current_q))
